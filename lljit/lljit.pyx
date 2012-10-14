@@ -64,10 +64,11 @@ cdef class module:
         self.load_code (code, binary)
 
     def __dealloc__ (self):
-        # segfault, who owns this?
-        #del self.function
-        del self.module
-        #del self.engine
+        if self.fpm:
+            self.fpm.doFinalization()
+            del self.fpm
+        if self.engine:
+            del self.engine
 
     cdef load_code (self, bytes code, bint binary):
         cdef sm_diagnostic diag = sm_diagnostic()
