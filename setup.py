@@ -39,8 +39,8 @@ setup (
     packages         = ['lljit'],
     ext_modules      = [ext],
     install_requires = ['cython>=0.15'],
-    url              = 'http://github.com/samrushing/lljit/',
-    download_url     = "http://github.com/samrushing/lljit/tarball/master#egg=lljit-0.1",
+    url              = 'http://github.com/mkushnir/lljit/',
+    download_url     = "http://github.com/mkushnir/lljit/tarball/master#egg=lljit-0.1",
     license          = 'Simplified BSD',
     cmdclass = {'build_ext': build_ext},
     )
