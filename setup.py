@@ -27,7 +27,7 @@ ext = Extension (
     'lljit.lljit',
     ['lljit/lljit.pyx', 'lljit/llvm.pxd'],
     language='c++',
-    extra_compile_args = cxxflags,
+    extra_compile_args = cxxflags + ['-fexceptions'],
     extra_link_args = ldflags + linkargs,
     )
 
