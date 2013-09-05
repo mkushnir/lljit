@@ -33,7 +33,7 @@ ext = Extension (
 
 setup (
     name             = 'lljit',
-    version          = '0.1',
+    version          = '0.1.1',
     description      = 'cython interface to LLVM Jit',
     author           = "Sam Rushing",
     packages         = ['lljit'],
