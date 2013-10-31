@@ -36,12 +36,21 @@ cdef class sm_diagnostic:
     def __dealloc__ (self):
         del self.d
     def __repr__ (self):
-        return '<diag file:%r line:%d col:%d %r>' % (
-            self.d.getFilename().c_str(),
-            self.d.getLineNo(),
-            self.d.getColumnNo(),
-            self.d.getMessage().c_str()
-            )
+        IF LLVM_VERSION < (3, 3):
+            return '<diag file:%r line:%d col:%d %r>' % (
+                self.d.getFilename().c_str(),
+                self.d.getLineNo(),
+                self.d.getColumnNo(),
+                self.d.getMessage().c_str()
+                )
+        ELSE:
+            return '<diag file:%r line:%d col:%d %r>' % (
+                self.d.getFilename().Data(),
+                self.d.getLineNo(),
+                self.d.getColumnNo(),
+                self.d.getMessage().Data()
+                )
+
 
 cdef class memory_buffer:
     cdef MemoryBuffer * mb
