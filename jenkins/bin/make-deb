@@ -18,4 +18,4 @@ Maintainer: $pname
 Description: $pname
 EOD
 
-fakeroot --  dpkg-deb --build $S $S/${pnameprefix}${pnamever}.${uname_p}.deb
+fakeroot --  dpkg-deb --build $S $S/../${pnameprefix}${pnamever}.${uname_p}.deb

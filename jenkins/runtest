@@ -80,8 +80,6 @@ then
     cp `dirname $0`/bin/make-deb $WORKSPACE/bin/
 fi
 
-. $WORKSPACE/bin/activate
-
 export BUILDROOT=$WORKSPACE
 export PREFIX=$WORKSPACE
 export EQ_DEV_CYTHONVER=0.19.1
