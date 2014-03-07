@@ -1,0 +1,436 @@
+# This is a Makefile version of the buildenv script. The latter has now
+# been deprecated.
+#
+.foo.done=${BUILDROOT}/.foo.done
+.check-env.done=${BUILDROOT}/.check-env.done
+.check-files.done=${BUILDROOT}/.check-files.done
+.make-dirs.done=${BUILDROOT}/.make-dirs.done
+.copy-files.done=${BUILDROOT}/.copy-files.done
+.setuptools.done=${BUILDROOT}/.setuptools.done
+.llvm.done=${BUILDROOT}/.llvm.done
+.cython.done=${BUILDROOT}/.cython.done
+.psutil.done=${BUILDROOT}/.psutil.done
+.lljit.done=${BUILDROOT}/.lljit.done
+.shrapnel.done=${BUILDROOT}/.shrapnel.done
+.amqp-shrapnel.done=${BUILDROOT}/.amqp-shrapnel.done
+.ipgeo.done=${BUILDROOT}/.ipgeo.done
+.qlang.done=${BUILDROOT}/.qlang.done
+.edgequery.done=${BUILDROOT}/.edgequery.done
+.package.done=${BUILDROOT}/.package.done
+
+# GNUMakefile
+#_R= ${shell pwd}
+#_R!=pwd
+_R=${BUILDROOT}
+uname_s=${shell uname -s | sed 'y/QWERTYUIOPASDFGHJKLZXCVBNM/qwertyuiopasdfghjklzxcvbnm/'}
+uname_p=${shell uname -p}
+pythonver=${shell python -V 2>&1 | sed -E 's/Python ([^.]+)\.([^.]+)\.(.+)/\1\2/'}
+pythonprefix=py${pythonver}-
+
+
+all: print-env
+
+clean-all: check-env clean-foo clean-check-env clean-check-files clean-make-dirs clean-copy-files clean-setuptools clean-llvm clean-cython clean-psutil clean-lljit clean-shrapnel clean-amqp-shrapnel clean-ipgeo clean-qlang clean-edgequery clean-package
+
+clean: clean-all
+
+${.foo.done}:
+	@echo foo ...
+	@touch ${.foo.done}
+
+foo: ${.foo.done}
+
+clean-foo:
+	@rm -f ${.foo.done}
+
+
+_check-buildroot:
+	@test "`echo "${BUILDROOT}" | sed 's/^\(.\).*/\1/'`" = '/'
+	@test -d "${BUILDROOT}"
+
+${.check-env.done}:
+	@echo checking env ...
+	@which git
+	@which fakeroot
+	@which dpkg-deb
+	@which python
+	@test -x ${BUILDROOT}/bin/make-deb
+	@test "`echo "${BUILDROOT}" | sed 's/^\(.\).*/\1/'`" = '/'
+	@test -d "${BUILDROOT}"
+	@test -d "${PREFIX}"
+	@if test -n "${GIT_SSH}"; then test -f ${GIT_SSH}; else true; fi;
+	@if test -n "${EQ_DEV_HGKEY}"; then test -f ${EQ_DEV_HGKEY}; else true; fi;
+	#@test -n "${EQ_DEV_PYTHONVER}"
+	#@test -n "${EQ_DEV__PYTHONVER}"
+	@test -n "${EQ_DEV_CYTHONVER}"
+	@test -n "${EQ_DEV_LLVMVER}"
+	#@test -n "${EQ_DEV_PSUTILVER}"
+	@test -n "${EQ_DEV_LLJITVER}"
+	#@test -n "${EQ_DEV_SHRAPNELVER}"
+	#@test -n "${EQ_DEV_QLANGVER}"
+	@which wget
+	@touch ${.check-env.done}
+
+check-env: ${.check-env.done}
+
+clean-check-env: _check-buildroot
+	@rm -f ${.check-env.done}
+
+
+${.check-files.done}: ${.check-env.done}
+	@echo checking files ...
+	@for i in ${_R}/geo.db \
+	    ${_R}/cds_ips.dat \
+	    $${GIT_SSH} \
+	    $${EQ_DEV_HGKEY}; \
+	do \
+	    if ! test -f $$i; \
+	    then \
+	        echo "$$i might be needed for you"; \
+	    fi; \
+	done;
+
+	@touch ${.check-files.done}
+
+check-files: ${.check-files.done}
+
+clean-check-files: _check-buildroot
+	@echo cleaning check fiels ...
+	@rm -f ${.check-files.done}
+
+
+${.make-dirs.done}: ${.check-env.done}
+	@echo making dirs ...
+	@touch ${.make-dirs.done}
+
+make-dirs: ${.make-dirs.done}
+
+clean-make-dirs: _check-buildroot
+	@echo cleaning dirs ...
+	@rm -f ${.make-dirs.done}
+
+
+${.copy-files.done}: ${.check-files.done} ${.make-dirs.done}
+	@echo copying files ...
+	@if test -f ${_R}/geo.db; then cp ${_R}/geo.db ${PREFIX}/etc/; else true; fi;
+	@if test -f ${_R}/cds_ips.dat; then cp ${_R}/cds_ips.dat ${PREFIX}/etc/; else true; fi;
+	@touch ${.copy-files.done}
+
+copy-files: ${.copy-files.done}
+
+clean-copy-files: _check-buildroot
+	@echo cleaning files ...
+	@rm -f ${.copy-files.done}
+
+
+# Build time deps, we don't make an rpm out of it for now
+${.llvm.done}: ${.make-dirs.done}
+	@echo building LLVM ...
+	@if ! test -e ${PREFIX}/lib/LLVMHello.so; then rm -Rf ${_R}/llvm && \
+	    mkdir -p ${_R}/llvm && \
+	    cd ${_R}/llvm && \
+	    wget -O- http://llvm.org/releases/${EQ_DEV_LLVMVER}/llvm-${EQ_DEV_LLVMVER}.src.tar.gz  | tar -xz -f- && \
+	    cd llvm-${EQ_DEV_LLVMVER}.src && \
+	    ./configure --prefix=${PREFIX} --enable-optimized=yes --enable-assertions=no && \
+	    ${MAKE} all install; else echo '... already installed'; fi;
+	@touch ${.llvm.done}
+
+llvm: ${.llvm.done}
+
+clean-llvm: _check-buildroot
+	@echo cleaning LLVM ...
+	@rm -Rf ${_R}/llvm
+	@rm -f ${.llvm.done}
+
+
+${.setuptools.done}: ${.make-dirs.done}
+	@echo installing setuptools ...
+	@if not python -c 'import setuptools'; then rm -Rf ${_R}/setuptools && \
+	    mkdir ${_R}/setuptools && \
+	    cd ${_R}/setuptools && \
+	    rm -f setuptools-1.2.tar.gz && \
+	    wget --no-check-certificate 'https://pypi.python.org/packages/source/s/setuptools/setuptools-1.2.tar.gz' && \
+	    tar -xz -f setuptools-1.2.tar.gz && \
+	    cd setuptools-1.2 && \
+	    python setup.py install; else echo '... already installed'; fi;
+	@touch ${.setuptools.done}
+
+setuptools: ${.setuptools.done}
+
+clean-setuptools:
+	@echo cleaning setuptools ...
+	@rm -Rf ${_R}/setuptools
+	@rm -f ${.setuptools.done}
+
+
+# Build time deps, we don't make an rpm out of it for now
+${.cython.done}: ${.make-dirs.done}
+	@echo installing Cython ...
+	@if ! which cython; then rm -Rf ${_R}/cython && \
+	    mkdir ${_R}/cython && \
+	    cd ${_R}/cython && \
+	    rm -f Cython-${EQ_DEV_CYTHONVER}.tar.gz && \
+	    wget --no-check-certificate http://pypi.python.org/packages/source/C/Cython/Cython-${EQ_DEV_CYTHONVER}.tar.gz && \
+	    tar -xz -f Cython-${EQ_DEV_CYTHONVER}.tar.gz && \
+	    cd Cython-${EQ_DEV_CYTHONVER} && \
+	    python setup.py install; else echo "... already installed"; fi;
+	@touch ${.cython.done}
+
+cython: ${.cython.done}
+
+clean-cython: _check-buildroot
+	@echo cleaning Cython ...
+	@rm -Rf ${_R}/cython
+	@rm -f ${.cython.done}
+
+
+# Build time deps
+${.psutil.done}: ${.make-dirs.done}
+	@echo building psutil ...
+	@rm -Rf ${_R}/psutil && \
+	D=${_R}/psutil/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/psutil && \
+	    rm -f psutil-${EQ_DEV_PSUTILVER}* && \
+	    wget --no-check-certificate https://pypi.python.org/packages/source/p/psutil/psutil-${EQ_DEV_PSUTILVER}.tar.gz && \
+	    tar -xz -f psutil-${EQ_DEV_PSUTILVER}.tar.gz && \
+	    ( cd psutil-${EQ_DEV_PSUTILVER} && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f psutil-${EQ_DEV_PSUTILVER}/dist/psutil-${EQ_DEV_PSUTILVER}.${uname_s}-${uname_p}.tar.gz -C stage && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb psutil ${EQ_DEV_PSUTILVER} ${pythonprefix}
+	@touch ${.psutil.done}
+
+psutil: ${.psutil.done}
+
+clean-psutil: _check-buildroot
+	@echo cleaning psutil ...
+	@rm -Rf ${_R}/psutil*
+	@rm -f ${.psutil.done}
+
+
+# Build time deps
+${.lljit.done}: ${.cython.done} ${.llvm.done}
+	@echo building lljit ...
+	@if test "${EQ_DEV_LLJITVER}" = "0.0.0"; \
+	then \
+	    ( cd ${_R}/lljit && python setup.py sdist ) && \
+	    cp ${_R}/lljit/dist/lljit-*.tar.gz ${_R}/lljit/; \
+	else \
+	    echo "get from nexus"; \
+	fi;
+	@D=${_R}/lljit/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/lljit && \
+	    tar -xz -f lljit-*.tar.gz && \
+	    ( cd lljit-* && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f lljit-*/dist/lljit-*.${uname_s}-${uname_p}.tar.gz -C stage ) && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ${BUILDROOT}/bin/make-deb lljit ${EQ_DEV_LLJITVER} ${pythonprefix}
+	@touch ${.lljit.done}
+
+lljit: ${.lljit.done}
+
+clean-lljit: _check-buildroot
+	@echo cleaning lljit ...
+	@rm -Rf ${_R}/lljit*
+	@rm -f ${.lljit.done}
+
+
+# Build time deps
+${.shrapnel.done}: ${.cython.done} ${.setuptools.done}
+	@echo building shrapnel ...
+	@rm -Rf ${_R}/shrapnel && mkdir ${_R}/shrapnel
+	@if test "${EQ_DEV_SHRAPNELVER}" = "0.0.0"; \
+	then \
+	    ( cd ${_R} && \
+	      rm -Rf shrapnel-${EQ_DEV_SHRAPNELVER} && \
+	      git clone git@github.com:mkushnir/shrapnel.git shrapnel-${EQ_DEV_SHRAPNELVER} && \
+	      tar -cz -f shrapnel-${EQ_DEV_SHRAPNELVER}.tar.gz shrapnel-${EQ_DEV_SHRAPNELVER} && \
+	      mv shrapnel-${EQ_DEV_SHRAPNELVER}.tar.gz ${_R}/shrapnel/ && \
+	      rm -Rf shrapnel-${EQ_DEV_SHRAPNELVER}; ) \
+	else \
+	    ( cd ${_R}/shrapnel && rm -f shrapnel-${EQ_DEV_SHRAPNELVER}.tar.gz && \
+	      wget http://nexus.llnw.com/content/repositories/releases/com/llnw/edge/query/shrapnel/${EQ_DEV_SHRAPNELVER}/shrapnel-${EQ_DEV_SHRAPNELVER}.tar.gz ); \
+	fi;
+
+	@D=${_R}/shrapnel/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/shrapnel && \
+	    tar -xz -f shrapnel-${EQ_DEV_SHRAPNELVER}.tar.gz && \
+	    ( cd shrapnel-${EQ_DEV_SHRAPNELVER} && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f shrapnel-${EQ_DEV_SHRAPNELVER}/dist/coro-*.${uname_s}-${uname_p}.tar.gz -C stage && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb coro ${EQ_DEV_SHRAPNELVER} ${pythonprefix}
+	@touch ${.shrapnel.done}
+
+shrapnel: ${.shrapnel.done}
+
+clean-shrapnel: _check-buildroot
+	@echo cleaning shrapnel ...
+	@rm -Rf ${_R}/shrapnel*
+	@rm -f ${.shrapnel.done}
+
+
+# Build time deps
+${.amqp-shrapnel.done}: ${.setuptools.done}
+	@echo building amqp-shrapnel ...
+	@rm -Rf ${_R}/amqp-shrapnel && mkdir ${_R}/amqp-shrapnel
+	@if test "${EQ_DEV_AMQPSHRAPNELVER}" = "0.0.0"; \
+	then \
+	    ( cd ${_R} && \
+	      rm -Rf amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER} && \
+	      git clone git@github.com:mkushnir/amqp-shrapnel.git amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER} && \
+	      tar -cz -f amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}.tar.gz amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER} && \
+	      mv amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}.tar.gz ${_R}/amqp-shrapnel/ && \
+	      rm -Rf amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}; ) \
+	else \
+	    ( cd ${_R}/amqp-shrapnel && rm -f amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}.tar.gz && \
+	      wget http://nexus.llnw.com/content/repositories/releases/com/llnw/edge/query/amqp_shrapnel/${EQ_DEV_AMQPSHRAPNELVER}/amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}.tar.gz ); \
+	fi;
+
+	@D=${_R}/amqp-shrapnel/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/amqp-shrapnel && \
+	    tar -xz -f amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}.tar.gz && \
+	    ( cd amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER} && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f amqp_shrapnel-${EQ_DEV_AMQPSHRAPNELVER}/dist/amqp_shrapnel-*.${uname_s}-${uname_p}.tar.gz -C stage && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb amqp-shrapnel ${EQ_DEV_AMQPSHRAPNELVER} ${pythonprefix}
+	@touch ${.amqp-shrapnel.done}
+
+amqp-shrapnel: ${.amqp-shrapnel.done}
+
+clean-amqp-shrapnel: _check-buildroot
+	@echo cleaning amqp-shrapnel ...
+	@rm -Rf ${_R}/amqp-shrapnel*
+	@rm -f ${.amqp-shrapnel.done}
+
+
+# Build time deps
+${.ipgeo.done}: ${.cython.done}
+	@echo building ipgeo ...
+	@rm -Rf ${_R}/ipgeo && \
+	    cd ${_R} && \
+	    git clone git@github.llnw.net:llnw/ipgeo.git
+
+	@D=${_R}/ipgeo/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/ipgeo && \
+	  ${MAKE} && \
+	  S=${_R}/ipgeo/stage/${PREFIX} && \
+	  install -d $$S/include && \
+	  install -d $$S/lib && \
+	  install lib/ipgeo.h $$S/include && \
+	  install lib/libipgeo.a $$S/lib && \
+	  install lib/libipgeo.so $$S/lib && \
+	  ( cd lang/cython && \
+	    python setup.py bdist && \
+	    tar -xvz -f dist/ipgeo-0.0.0.${uname_s}-${uname_p}.tar.gz -C ${_R}/ipgeo/stage ) && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb ipgeo 0.0.0 ${pythonprefix}
+	@touch ${.ipgeo.done}
+
+ipgeo: ${.ipgeo.done}
+
+clean-ipgeo: _check-buildroot
+	@echo cleaning ipgeo ...
+	@rm -Rf ${_R}/ipgeo
+	@rm -f ${.ipgeo.done}
+
+
+# Build time deps
+${.qlang.done}: ${.cython.done}
+	@echo building qlang ...
+	@rm -Rf ${_R}/qlang && mkdir ${_R}/qlang
+	@if test "${EQ_DEV_QLANGVER}" = "0.0.0"; \
+	then \
+	    ( cd ${_R} && \
+	      rm -Rf qlang-${EQ_DEV_QLANGVER} && \
+	      git clone git@github.llnw.net:EQRY/qlang.git qlang-${EQ_DEV_QLANGVER} && \
+	      tar -cz -f qlang-${EQ_DEV_QLANGVER}.tar.gz qlang-${EQ_DEV_QLANGVER} && \
+	      mv qlang-${EQ_DEV_QLANGVER}.tar.gz ${_R}/qlang/ && \
+	      rm -Rf qlang-${EQ_DEV_QLANGVER}; ) \
+	else \
+	    ( cd ${_R}/qlang && rm -f qlang-${EQ_DEV_QLANGVER}.tar.gz && \
+	      wget http://nexus.llnw.com/content/repositories/releases/com/llnw/edge/query/qlang/${EQ_DEV_QLANGVER}/qlang-${EQ_DEV_QLANGVER}.tar.gz ); \
+	fi;
+
+	@D=${_R}/qlang/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/qlang && \
+	    tar -xz -f qlang-${EQ_DEV_QLANGVER}.tar.gz && \
+	    ( cd qlang-${EQ_DEV_QLANGVER} && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f qlang-${EQ_DEV_QLANGVER}/dist/qlang-*.${uname_s}-${uname_p}.tar.gz -C stage && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb qlang ${EQ_DEV_QLANGVER} ${pythonprefix}
+	@touch ${.qlang.done}
+
+qlang: ${.qlang.done}
+
+clean-qlang: _check-buildroot
+	@echo cleaning qlang ...
+	@rm -Rf ${_R}/qlang*
+	@rm -f ${.qlang.done}
+
+
+# Build time deps
+${.edgequery.done}: ${.make-dirs.done}
+	@echo building edgequery ...
+	@rm -Rf ${_R}/edgequery-client && mkdir ${_R}/edgequery-client
+	@if test "${EQ_DEV_EDGEQUERYVER}" = "0.0.0"; \
+	then \
+	    ( cd ${_R} && \
+	      rm -Rf edgequery-client-${EQ_DEV_EDGEQUERYVER} && \
+	      git clone git@github.llnw.net:EQRY/client.client-v2.git edgequery-client-${EQ_DEV_EDGEQUERYVER}  && \
+	      tar -cz -f edgequery-client-${EQ_DEV_EDGEQUERYVER}.tar.gz edgequery-client-${EQ_DEV_EDGEQUERYVER} && \
+	      mv edgequery-client-${EQ_DEV_EDGEQUERYVER}.tar.gz ${_R}/edgequery-client/; \
+	      rm -Rf edgequery-client-${EQ_DEV_EDGEQUERYVER}; ) \
+	else \
+	    ( cd ${_R}/edgequery-client && rm -f edgequery-client-${EQ_DEV_EDGEQUERYVER}.tar.gz && \
+	      wget http://nexus.llnw.com/content/repositories/releases/com/llnw/edge/query/edgequery-client/${EQ_DEV_EDGEQUERYVER}/edgequery-client-${EQ_DEV_EDGEQUERYVER}.tar.gz ); \
+	fi;
+
+	@D=${_R}/edgequery-client/stage/DEBIAN && \
+	mkdir -p $$D && \
+	( cd ${_R}/edgequery-client && \
+	    tar -xz -f edgequery-client-${EQ_DEV_EDGEQUERYVER}.tar.gz && \
+	    ( cd edgequery-client-${EQ_DEV_EDGEQUERYVER} && rm -Rf dist && python setup.py bdist ) && \
+	    tar -xz -f edgequery-client-${EQ_DEV_EDGEQUERYVER}/dist/edgequery-*.${uname_s}-${uname_p}.tar.gz -C stage && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ./bin/make-deb edgequery-client ${EQ_DEV_EDGEQUERYVER} ${pythonprefix}
+	@touch ${.edgequery.done}
+
+edgequery: ${.edgequery.done}
+
+clean-edgequery: _check-buildroot
+	@echo cleaning edgequery ...
+	@rm -Rf ${_R}/edgequery-client*
+	@rm -f ${.edgequery.done}
+
+# Run time deps
+${.package.done}: ${.make-dirs.done} ${.copy-files.done} ${.psutil.done} ${.lljit.done} ${.shrapnel.done} ${.amqp-shrapnel.done} ${.ipgeo.done} ${.qlang.done} ${.edgequery.done}
+	@touch ${.package.done}
+
+package: ${.package.done}
+
+clean-package: _check-buildroot
+	@echo cleaning package ...
+	@rm -f ${_R}/SPECS/.py${EQ_DEV__PYTHONVER}-edgequery-base-${EQ_DEV_EDGEQUERYBASEVER}.files
+	@rm -f ${.package.done}
+
+
+print-env: _check-buildroot
+	@echo env GIT_SSH=${GIT_SSH}
+	@env | grep EQ_ | sort
+
+
+help:
+	@echo
+	@echo "Usage: BUILDROOT=<abspath> [ EQ_PACKAGING={edgeprism-billing|fcs-billing|xfer-billing} ] [ GIT_SSH=<abspath> ] [ EQ_DEV_HGKEY=<abspath> ] ${MAKE}" [ target ... ]
+	@echo
+	@echo "	useful targets:"
+	@echo "		print-env"
+	@echo "		copy-files, clean-copy-files"
+	@echo "		cython, clean-cython"
+	@echo "		llvm, clean-llvm"
+	@echo "		shrapnel, clean-shrapnel"
+	@echo "		lljit, clean-lljit"
+	@echo "		ipgeo, clean-ipgeo"
+	@echo "		psutil, clean-psutil"
+	@echo "		qlang, clean-qlang"
+	@echo "		edgequery, clean-edgequery"
+	@echo "		package, clean-package"
+	@echo "		all, clean-all, clean"
