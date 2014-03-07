@@ -160,10 +160,10 @@ ${.lljit.done}: ${.cython.done} ${.llvm.done}
 	    ( cd lljit-* && rm -Rf build && . ${_R}/bin/activate && python setup.py build ) && \
 	    ( cd lljit-* && rm -Rf dist && python setup.py bdist ) && \
 	    tar -xz -f lljit-*/dist/lljit-*.${uname_s}-${uname_p}.tar.gz -C stage ) && \
-	EQ_DEV_LLJITVER=`cd ${_R}/lljit && ls lljit-*.tar.gz` && \
-	EQ_DEV_LLJITVER=$${EQ_DEV_LLJITVER#lljit-} && \
-	EQ_DEV_LLJITVER=$${EQ_DEV_LLJITVER%.tar.gz} && \
-	MAKEDEB_DEBIAN=$$D /bin/sh ${BUILDROOT}/bin/make-deb lljit $${EQ_DEV_LLJITVER} ${pythonprefix}
+	V=`cd ${_R}/lljit && ls lljit-*.tar.gz` && \
+	V=$${V#lljit-} && \
+	V=$${V%.tar.gz} && \
+	MAKEDEB_DEBIAN=$$D /bin/sh ${BUILDROOT}/bin/make-deb lljit $${V} ${pythonprefix}
 	@touch ${.lljit.done}
 
 lljit: ${.lljit.done}
