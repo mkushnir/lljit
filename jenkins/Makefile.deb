@@ -163,7 +163,6 @@ ${.lljit.done}: ${.cython.done} ${.llvm.done}
 	EQ_DEV_LLJITVER=`cd ${_R}/lljit && ls lljit-*.tar.gz` && \
 	EQ_DEV_LLJITVER=$${EQ_DEV_LLJITVER#lljit-} && \
 	EQ_DEV_LLJITVER=$${EQ_DEV_LLJITVER%.tar.gz} && \
-	echo $${EQ_DEV_LLJITVER} && \
 	MAKEDEB_DEBIAN=$$D /bin/sh ${BUILDROOT}/bin/make-deb lljit $${EQ_DEV_LLJITVER} ${pythonprefix}
 	@touch ${.lljit.done}
 
