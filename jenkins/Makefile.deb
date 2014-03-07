@@ -151,18 +151,17 @@ clean-cython: _check-buildroot
 # Build time deps
 ${.lljit.done}: ${.cython.done} ${.llvm.done}
 	@echo building lljit ...
-	@( cd ${_R}/lljit && python setup.py sdist ) && \
-	    cp ${_R}/lljit/dist/lljit-*.tar.gz ${_R}/lljit/;
 	D=${_R}/lljit/stage/DEBIAN && \
 	mkdir -p $$D && \
 	( cd ${_R}/lljit && \
-	    tar -xz -f lljit-*.tar.gz && \
-	    ( cd lljit-* && rm -Rf build && . ${_R}/bin/activate && python setup.py build ) && \
-	    ( cd lljit-* && rm -Rf dist && python setup.py bdist ) && \
-	    tar -xz -f lljit-*/dist/lljit-*.${uname_s}-${uname_p}.tar.gz -C stage ) && \
-	V=`cd ${_R}/lljit && ls lljit-*.tar.gz` && \
+	    ( rm -Rf build && . ${_R}/bin/activate && python setup.py build ) && \
+	    ( rm -Rf dist && . ${_R}/bin/activate && python setup.py bdist ) && \
+	    mkdir stage.0 && tar -xz -f dist/lljit-*.${uname_s}-${uname_p}.tar.gz -C stage.0 && \
+	    mkdir -p stage/usr/local && mv stage.0/${_R}/* stage/usr/local/ ) && \
+	V=`cd ${_R}/lljit/dist && ls lljit-*.${uname_s}-${uname_p}.tar.gz` && \
 	V=$${V#lljit-} && \
-	V=$${V%.tar.gz} && \
+	V=$${V%.${uname_s}-${uname_p}.tar.gz} && \
+	echo V=$$V && \
 	MAKEDEB_DEBIAN=$$D /bin/sh ${BUILDROOT}/bin/make-deb lljit $${V} ${pythonprefix}
 	@touch ${.lljit.done}
 
