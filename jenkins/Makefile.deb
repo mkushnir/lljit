@@ -157,6 +157,7 @@ ${.lljit.done}: ${.cython.done} ${.llvm.done}
 	    ( rm -Rf build && . ${_R}/bin/activate && python setup.py build ) && \
 	    ( rm -Rf dist && . ${_R}/bin/activate && python setup.py bdist ) && \
 	    C=`echo -n ${_R} | sed 's/[^/]//g' | wc -m` && \
+	    C=$$(( C + 1 )) && \
 	    mkdir -p stage/usr/local && \
 	    tar --strip-components=$$C -xz -f dist/lljit-*.${uname_s}-${uname_m}.tar.gz -C stage/usr/local ) && \
 	V=`cd ${_R}/lljit/dist && ls lljit-*.${uname_s}-${uname_m}.tar.gz` && \
